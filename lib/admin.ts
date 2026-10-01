@@ -1,5 +1,3 @@
-import "server-only";
-
 export function getApprovedAdminEmails(): string[] {
   return (process.env.INFRAGREEN_ADMIN_EMAILS ?? "")
     .split(",")
