@@ -4,7 +4,10 @@ DROP POLICY IF EXISTS "Allow anonymous project submissions" ON public.projects;
 CREATE POLICY "Allow anonymous project submissions"
 ON public.projects
 FOR INSERT TO anon
-WITH CHECK (true);
+WITH CHECK (
+  estimated_budget IS NOT NULL
+  AND btrim(estimated_budget::text) <> ''
+);
 
 ALTER TABLE public.professional_applications ENABLE ROW LEVEL SECURITY;
 GRANT INSERT ON TABLE public.professional_applications TO anon;

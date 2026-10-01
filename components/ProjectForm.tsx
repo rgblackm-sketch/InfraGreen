@@ -91,6 +91,7 @@ function validateStep(step: number, draft: ProjectSubmissionData): StepErrors {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.email.trim())) {
       errors.email = "Enter a valid email address.";
     }
+    if (!draft.budget.trim()) errors.budget = "Select an estimated project budget.";
     if (!draft.acknowledgement) {
       errors.acknowledgement = "Please confirm that you understand this before continuing.";
     }
@@ -485,11 +486,12 @@ export function ProjectForm() {
               <input autoComplete="tel" name="phone" onChange={(event) => updateDraft("phone", event.target.value)} type="tel" value={draft.phone} />
             </label>
             <label className="field field-full">
-              <span>Estimated project budget <em>Optional</em></span>
-              <select name="budget" onChange={(event) => updateDraft("budget", event.target.value)} value={draft.budget}>
-                <option value="">Select an estimate, if known</option>
+              <span>Estimated project budget <b>*</b></span>
+              <select aria-describedby={errors.budget ? "budget-error" : undefined} aria-invalid={Boolean(errors.budget)} name="budget" onChange={(event) => updateDraft("budget", event.target.value)} value={draft.budget}>
+                <option value="">Select an estimate</option>
                 {budgets.map((budget) => <option key={budget} value={budget}>{budget}</option>)}
               </select>
+              <FieldError id="budget-error" message={errors.budget} />
             </label>
           </div>
           <label className={`project-acknowledgement${errors.acknowledgement ? " has-error" : ""}`}>
