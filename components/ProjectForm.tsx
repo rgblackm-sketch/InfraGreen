@@ -19,10 +19,11 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent, DragEvent, FormEvent } from "react";
 import {
-  createLocalProjectReceipt,
   type ProjectSubmissionData,
   type ProjectSubmissionReceipt,
 } from "@/lib/project-submission";
+import { createSubmissionReference } from "@/lib/submission-reference";
+import { getSupabaseBrowserClient } from "@/lib/supabase";
 
 const stepLabels = ["Problem", "Property", "Photos", "Contact", "Review"];
 
@@ -78,6 +79,10 @@ function validateStep(step: number, draft: ProjectSubmissionData): StepErrors {
     if (!/^\d{5}(?:-\d{4})?$/.test(draft.zipCode.trim())) {
       errors.zipCode = "Enter a valid ZIP code, such as 70112.";
     }
+  }
+
+  if (step === 2 && draft.photos.length === 0) {
+    errors.photos = "Add at least one photo to continue.";
   }
 
   if (step === 3) {
@@ -146,10 +151,13 @@ export function ProjectForm() {
   const [activeStep, setActiveStep] = useState(0);
   const [errors, setErrors] = useState<StepErrors>({});
   const [receipt, setReceipt] = useState<ProjectSubmissionReceipt | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const didMountRef = useRef(false);
   const previewUrlsRef = useRef(new Set<string>());
+  const submissionInProgressRef = useRef(false);
 
   useEffect(() => {
     if (didMountRef.current) headingRef.current?.focus();
@@ -235,14 +243,14 @@ export function ProjectForm() {
     setActiveStep(step);
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (activeStep !== stepLabels.length - 1) {
       continueToNextStep();
       return;
     }
 
-    const allErrors = [0, 1, 3].reduce<StepErrors>(
+    const allErrors = [0, 1, 2, 3].reduce<StepErrors>(
       (collected, step) => ({ ...collected, ...validateStep(step, draft) }),
       {},
     );
@@ -251,11 +259,48 @@ export function ProjectForm() {
     if (Object.keys(allErrors).length > 0) {
       if (allErrors.stormwaterProblems) setActiveStep(0);
       else if (allErrors.propertyType || allErrors.city || allErrors.state || allErrors.zipCode) setActiveStep(1);
+      else if (allErrors.photos) setActiveStep(2);
       else setActiveStep(3);
       return;
     }
 
-    setReceipt(createLocalProjectReceipt(draft));
+    if (submissionInProgressRef.current) return;
+    submissionInProgressRef.current = true;
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    const referenceNumber = createSubmissionReference("IG");
+
+    try {
+      const { error } = await getSupabaseBrowserClient().from("projects").insert({
+        problems: draft.stormwaterProblems,
+        problem_description: draft.problemDescription,
+        property_type: draft.propertyType,
+        street_address: draft.streetAddress,
+        city: draft.city,
+        state: draft.state,
+        zip_code: draft.zipCode,
+        problem_duration: draft.problemDuration,
+        rain_description: draft.afterRainDescription,
+        first_name: draft.firstName,
+        last_name: draft.lastName,
+        email: draft.email,
+        phone: draft.phone,
+        estimated_budget: draft.budget,
+        acknowledgement: draft.acknowledgement,
+      });
+
+      if (error) throw error;
+      setReceipt({ referenceNumber });
+    } catch (error) {
+      if (process.env.NODE_ENV === "development") {
+        console.error("Failed to submit project to Supabase:", error);
+      }
+      setSubmitError("We couldn't submit your project right now. Your information is still here. Please try again.");
+    } finally {
+      submissionInProgressRef.current = false;
+      setIsSubmitting(false);
+    }
   }
 
   if (receipt) {
@@ -266,7 +311,7 @@ export function ProjectForm() {
         <h2>Project submitted.</h2>
         <p>Thanks for telling us about your property. InfraGreen will review your information and work to identify relevant professionals.</p>
         <div className="project-reference"><span>Project reference</span><strong>{receipt.referenceNumber}</strong></div>
-        <p className="confirmation-note">This is a development-only confirmation. Your information and selected photos have not been saved or sent to InfraGreen.</p>
+        <p className="confirmation-note">Your project information has been received. Selected photos were not uploaded with this inquiry.</p>
         <div className="success-actions">
           <Link className="button button-primary" href="/">Return Home <ArrowRight size={16} aria-hidden="true" /></Link>
           <Link className="button button-quiet" href="/solutions">Learn About Solutions</Link>
@@ -276,7 +321,7 @@ export function ProjectForm() {
   }
 
   return (
-    <form className="form-panel project-flow" noValidate onSubmit={handleSubmit}>
+    <form aria-busy={isSubmitting} className="form-panel project-flow" noValidate onSubmit={handleSubmit}>
       <nav className="flow-progress" aria-label={`Step ${activeStep + 1} of ${stepLabels.length}: ${stepLabels[activeStep]}`}>
         <ol>
           {stepLabels.map((label, index) => (
@@ -394,7 +439,7 @@ export function ProjectForm() {
             <label className="project-dropzone-label" htmlFor="project-photos">
               <span className="dropzone-icon"><ImageIcon size={23} aria-hidden="true" /></span>
               <span className="dropzone-title">Drop photos here or <strong>browse files</strong></span>
-              <span className="dropzone-hint" id="photo-help">JPG, PNG, or HEIC · Multiple images allowed · Optional</span>
+              <span className="dropzone-hint" id="photo-help">JPG, PNG, or HEIC · At least one photo required</span>
               <input accept=".jpg,.jpeg,.png,.heic,.heif,image/jpeg,image/png,image/heic,image/heif" aria-describedby={errors.photos ? "photo-help photo-error" : "photo-help"} className="project-file-input" id="project-photos" multiple name="photos" onChange={(event: ChangeEvent<HTMLInputElement>) => { addPhotos(event.target.files); event.currentTarget.value = ""; }} type="file" />
             </label>
           </div>
@@ -407,7 +452,7 @@ export function ProjectForm() {
               </div>
             </div>
           ) : (
-            <p className="photo-local-note">Photos are optional. Selected files stay in this browser and are not uploaded.</p>
+            <p className="photo-local-note">At least one photo is required. Selected files stay in this browser and are not uploaded.</p>
           )}
         </section>
       )}
@@ -490,24 +535,24 @@ export function ProjectForm() {
         </section>
       )}
 
-      <div className={`flow-actions${activeStep === 2 ? " has-skip" : ""}`}>
+      <div className="flow-actions">
         <button className="button button-quiet flow-back" disabled={activeStep === 0} onClick={goBack} type="button">
           <ArrowLeft size={16} aria-hidden="true" /> Back
         </button>
         <span className="flow-step-count">Step {activeStep + 1} of {stepLabels.length}</span>
         <div className="flow-action-right">
-          {activeStep === 2 && <button className="flow-skip" onClick={continueToNextStep} type="button">Skip for now</button>}
           {activeStep < stepLabels.length - 1 ? (
             <button className="button button-primary" onClick={continueToNextStep} type="button">
               Continue <ArrowRight size={16} aria-hidden="true" />
             </button>
           ) : (
-            <button className="button button-primary" type="submit">
+            <button className="button button-primary" disabled={isSubmitting} type="submit">
               Submit Project <Check size={16} aria-hidden="true" />
             </button>
           )}
         </div>
       </div>
+      {submitError && <p className="field-error" role="alert">{submitError}</p>}
       {activeStep === 4 && (
         <p className="review-disclaimer">InfraGreen will review your project information and work to connect you with relevant professionals. Professionals are responsible for evaluating site conditions and determining appropriate solutions.</p>
       )}

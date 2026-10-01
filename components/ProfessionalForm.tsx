@@ -14,10 +14,11 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import {
-  createDevelopmentApplicationReceipt,
   type ProfessionalApplication,
   type ProfessionalApplicationReceipt,
 } from "@/lib/professional-application";
+import { createSubmissionReference } from "@/lib/submission-reference";
+import { getSupabaseBrowserClient } from "@/lib/supabase";
 
 const stepLabels = ["Business", "Services", "Experience", "Coverage", "Review"];
 
@@ -129,8 +130,13 @@ function validateStep(step: number, application: ProfessionalApplication): Appli
     errors.services = "Choose at least one service your business currently provides.";
   }
 
-  if (step === 2 && application.portfolioUrls.some((url) => url.trim() && !isValidUrl(url))) {
-    errors.portfolioUrls = "Enter portfolio links as complete URLs starting with http:// or https://.";
+  if (step === 2) {
+    if (application.businessType.includes("Contractor") && !application.licenses.trim()) {
+      errors.licenses = "Enter at least one relevant license or registration.";
+    }
+    if (application.portfolioUrls.some((url) => url.trim() && !isValidUrl(url))) {
+      errors.portfolioUrls = "Enter portfolio links as complete URLs starting with http:// or https://.";
+    }
   }
 
   if (step === 3) {
@@ -201,8 +207,11 @@ export function ProfessionalForm() {
   const [activeStep, setActiveStep] = useState(0);
   const [errors, setErrors] = useState<ApplicationErrors>({});
   const [receipt, setReceipt] = useState<ProfessionalApplicationReceipt | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const didMountRef = useRef(false);
+  const submissionInProgressRef = useRef(false);
   const [application, setApplication] = useState<ProfessionalApplication>({
     businessName: "",
     contactFirstName: "",
@@ -303,7 +312,7 @@ export function ProfessionalForm() {
     setActiveStep(step);
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (activeStep < stepLabels.length - 1) {
       continueToNextStep();
@@ -324,7 +333,53 @@ export function ProfessionalForm() {
       return;
     }
 
-    setReceipt(createDevelopmentApplicationReceipt(application));
+    if (submissionInProgressRef.current) return;
+    submissionInProgressRef.current = true;
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    const referenceNumber = createSubmissionReference("IG-PRO");
+
+    try {
+      const { error } = await getSupabaseBrowserClient().from("professional_applications").insert({
+        business_name: application.businessName,
+        contact_first_name: application.contactFirstName,
+        contact_last_name: application.contactLastName,
+        email: application.email,
+        phone: application.phone,
+        website: application.website,
+        business_type: application.businessType,
+        years_in_business: application.yearsInBusiness,
+        business_description: application.businessDescription,
+        services: application.services,
+        other_services: application.otherServices,
+        licenses: application.licenses,
+        certifications: application.certifications,
+        insurance_status: application.insuranceStatus,
+        portfolio_urls: application.portfolioUrls.filter((url) => url.trim()),
+        project_experience: application.projectExperience,
+        professional_references: application.professionalReferences,
+        service_areas: application.serviceAreas,
+        zip_codes: application.zipCodes,
+        property_types: application.propertyTypes,
+        project_sizes: application.projectSizes,
+        availability: application.availability,
+        additional_information: application.additionalInformation,
+        acknowledgements: application.acknowledgements,
+        application_status: "pending",
+      });
+
+      if (error) throw error;
+      setReceipt({ referenceNumber });
+    } catch (error) {
+      if (process.env.NODE_ENV === "development") {
+        console.error("Failed to submit professional application to Supabase:", error);
+      }
+      setSubmitError("We couldn't submit your application right now. Your information is still here. Please try again.");
+    } finally {
+      submissionInProgressRef.current = false;
+      setIsSubmitting(false);
+    }
   }
 
   if (receipt) {
@@ -335,7 +390,7 @@ export function ProfessionalForm() {
         <h2>Application received.</h2>
         <p>Thanks for your interest in joining InfraGreen. We&apos;ll review your information before adding your business to the professional network.</p>
         <div className="project-reference"><span>Application reference</span><strong>{receipt.referenceNumber}</strong></div>
-        <p className="confirmation-note">This is a development-only confirmation. Your application has not been saved or sent to InfraGreen. Applications are reviewed manually; submission does not mean your business is approved or verified.</p>
+        <p className="confirmation-note">Applications are reviewed manually; submission does not mean your business is approved or verified.</p>
         <div className="success-actions">
           <Link className="button button-primary" href="/">Return Home <ArrowRight size={16} aria-hidden="true" /></Link>
           <Link className="button button-quiet" href="/about">Explore InfraGreen <MoveUpRight size={15} aria-hidden="true" /></Link>
@@ -359,7 +414,7 @@ export function ProfessionalForm() {
   }
 
   return (
-    <form className="form-panel professional-flow" noValidate onSubmit={handleSubmit}>
+    <form aria-busy={isSubmitting} className="form-panel professional-flow" noValidate onSubmit={handleSubmit}>
       <nav className="flow-progress" aria-label={`Step ${activeStep + 1} of ${stepLabels.length}: ${stepLabels[activeStep]}`}>
         <ol>
           {stepLabels.map((label, index) => (
@@ -483,9 +538,10 @@ export function ProfessionalForm() {
           </header>
           <div className="form-grid">
             <label className="field field-full">
-              <span>Relevant licenses or registrations <em>Optional</em></span>
-              <span className="field-helper">List contractor or professional licenses, registrations, or other relevant credentials. Leave blank if not applicable.</span>
-              <textarea name="licenses" onChange={(event) => updateApplication("licenses", event.target.value)} rows={3} value={application.licenses} />
+              <span>Relevant licenses or registrations {application.businessType.includes("Contractor") ? <b>*</b> : <em>Optional</em>}</span>
+              <span className="field-helper">{application.businessType.includes("Contractor") ? "List at least one relevant contractor license or registration." : "List contractor or professional licenses, registrations, or other relevant credentials. Leave blank if not applicable."}</span>
+              <textarea aria-describedby={errors.licenses ? "licenses-error" : undefined} aria-invalid={Boolean(errors.licenses)} name="licenses" onChange={(event) => updateApplication("licenses", event.target.value)} rows={3} value={application.licenses} />
+              <FieldError id="licenses-error" message={errors.licenses} />
             </label>
             <label className="field field-full">
               <span>Certifications <em>Optional</em></span>
@@ -664,11 +720,12 @@ export function ProfessionalForm() {
             Continue <ArrowRight size={16} aria-hidden="true" />
           </button>
         ) : (
-          <button className="button button-primary professional-submit" type="submit">
+          <button className="button button-primary professional-submit" disabled={isSubmitting} type="submit">
             Submit Application <Check size={16} aria-hidden="true" />
           </button>
         )}
       </div>
+      {submitError && <p className="field-error" role="alert">{submitError}</p>}
     </form>
   );
 }

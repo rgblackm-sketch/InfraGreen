@@ -34,16 +34,4 @@ export type ProfessionalApplication = {
 
 export type ProfessionalApplicationReceipt = {
   referenceNumber: string;
-  persistence: "local-only";
 };
-
-export function createDevelopmentApplicationReceipt(
-  application: ProfessionalApplication,
-): ProfessionalApplicationReceipt {
-  void application;
-  const reference = Math.floor(Math.random() * 9000) + 1000;
-  return {
-    referenceNumber: `IG-PRO-${new Date().getFullYear()}-${reference}`,
-    persistence: "local-only",
-  };
-}

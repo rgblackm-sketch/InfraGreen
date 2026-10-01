@@ -19,14 +19,4 @@ export type ProjectSubmissionData = {
 
 export type ProjectSubmissionReceipt = {
   referenceNumber: string;
-  persistence: "local-only";
 };
-
-export function createLocalProjectReceipt(project: ProjectSubmissionData): ProjectSubmissionReceipt {
-  void project;
-  const reference = Math.floor(Math.random() * 9000) + 1000;
-  return {
-    referenceNumber: `IG-${new Date().getFullYear()}-${reference}`,
-    persistence: "local-only",
-  };
-}
