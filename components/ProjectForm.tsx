@@ -23,7 +23,11 @@ import {
   type ProjectSubmissionReceipt,
 } from "@/lib/project-submission";
 import { createSubmissionReference } from "@/lib/submission-reference";
+import { submitProject } from "@/app/actions/submissions";
+import { TURNSTILE_SITE_KEY, TurnstileWidget } from "@/components/TurnstileWidget";
+import { createPhotoUploadTargets } from "@/app/actions/project-photos";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
+import { MAX_PHOTO_BYTES, MAX_PHOTOS } from "@/lib/photo-rules";
 
 const stepLabels = ["Problem", "Property", "Photos", "Contact", "Review"];
 
@@ -81,8 +85,10 @@ function validateStep(step: number, draft: ProjectSubmissionData): StepErrors {
     }
   }
 
-  if (step === 2 && draft.photos.length === 0) {
-    errors.photos = "Add at least one photo to continue.";
+  if (step === 2) {
+    if (draft.photos.length === 0) errors.photos = "Add at least one photo to continue.";
+    else if (draft.photos.length > MAX_PHOTOS) errors.photos = `Add up to ${MAX_PHOTOS} photos.`;
+    else if (draft.photos.some((file) => file.size > MAX_PHOTO_BYTES)) errors.photos = "Each photo must be 10 MB or smaller.";
   }
 
   if (step === 3) {
@@ -154,6 +160,8 @@ export function ProjectForm() {
   const [receipt, setReceipt] = useState<ProjectSubmissionReceipt | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileReset, setTurnstileReset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const didMountRef = useRef(false);
@@ -265,6 +273,11 @@ export function ProjectForm() {
       return;
     }
 
+    if (TURNSTILE_SITE_KEY && !turnstileToken) {
+      setSubmitError("Please complete the security check before submitting.");
+      return;
+    }
+
     if (submissionInProgressRef.current) return;
     submissionInProgressRef.current = true;
     setIsSubmitting(true);
@@ -273,7 +286,24 @@ export function ProjectForm() {
     const referenceNumber = createSubmissionReference("IG");
 
     try {
-      const { error } = await getSupabaseBrowserClient().from("projects").insert({
+      const targets = await createPhotoUploadTargets(
+        draft.photos.map((file) => ({ name: file.name, type: file.type, size: file.size })),
+      );
+      if (!targets.ok) {
+        setSubmitError(targets.error);
+        return;
+      }
+
+      const storage = getSupabaseBrowserClient().storage.from(targets.bucket);
+      for (const [index, target] of targets.uploads.entries()) {
+        const file = draft.photos[index];
+        const { error: uploadError } = await storage.uploadToSignedUrl(target.path, target.token, file, {
+          contentType: target.contentType,
+        });
+        if (uploadError) throw uploadError;
+      }
+
+      const result = await submitProject({
         problems: draft.stormwaterProblems,
         problem_description: draft.problemDescription,
         property_type: draft.propertyType,
@@ -289,9 +319,16 @@ export function ProjectForm() {
         phone: draft.phone,
         estimated_budget: draft.budget,
         acknowledgement: draft.acknowledgement,
-      });
+      }, turnstileToken, { ticket: targets.ticket, photoPaths: targets.uploads.map((upload) => upload.path) });
 
-      if (error) throw error;
+      if (!result.ok) {
+        setTurnstileReset((value) => value + 1);
+        if (result.error === "captcha") {
+          setSubmitError("Please complete the security check and try again.");
+          return;
+        }
+        throw new Error("Submission failed");
+      }
       setReceipt({ referenceNumber });
     } catch (error) {
       if (process.env.NODE_ENV === "development") {
@@ -312,7 +349,7 @@ export function ProjectForm() {
         <h2>Project submitted.</h2>
         <p>Thanks for telling us about your property. InfraGreen will review your information and work to identify relevant professionals.</p>
         <div className="project-reference"><span>Project reference</span><strong>{receipt.referenceNumber}</strong></div>
-        <p className="confirmation-note">Your project information has been received. Selected photos were not uploaded with this inquiry.</p>
+        <p className="confirmation-note">Your project information and photos have been received.</p>
         <div className="success-actions">
           <Link className="button button-primary" href="/">Return Home <ArrowRight size={16} aria-hidden="true" /></Link>
           <Link className="button button-quiet" href="/solutions">Learn About Solutions</Link>
@@ -440,14 +477,14 @@ export function ProjectForm() {
             <label className="project-dropzone-label" htmlFor="project-photos">
               <span className="dropzone-icon"><ImageIcon size={23} aria-hidden="true" /></span>
               <span className="dropzone-title">Drop photos here or <strong>browse files</strong></span>
-              <span className="dropzone-hint" id="photo-help">JPG, PNG, or HEIC · At least one photo required</span>
+              <span className="dropzone-hint" id="photo-help">JPG, PNG, or HEIC · 1 to 5 photos, up to 10 MB each</span>
               <input accept=".jpg,.jpeg,.png,.heic,.heif,image/jpeg,image/png,image/heic,image/heif" aria-describedby={errors.photos ? "photo-help photo-error" : "photo-help"} className="project-file-input" id="project-photos" multiple name="photos" onChange={(event: ChangeEvent<HTMLInputElement>) => { addPhotos(event.target.files); event.currentTarget.value = ""; }} type="file" />
             </label>
           </div>
           <FieldError id="photo-error" message={errors.photos} />
           {photos.length > 0 ? (
             <div className="photo-selection">
-              <div className="photo-selection-heading"><span>Selected photos <em>Kept on this device for now</em></span><span>{photos.length}</span></div>
+              <div className="photo-selection-heading"><span>Selected photos <em>Uploaded when you submit</em></span><span>{photos.length}</span></div>
               <div className="photo-preview-grid">
                 {photos.map((photo) => <PhotoPreview key={photo.id} photo={photo} onRemove={() => removePhoto(photo.id)} />)}
               </div>
@@ -535,6 +572,10 @@ export function ProjectForm() {
             </ReviewSection>
           </div>
         </section>
+      )}
+
+      {activeStep === stepLabels.length - 1 && (
+        <TurnstileWidget onToken={setTurnstileToken} resetSignal={turnstileReset} />
       )}
 
       <div className="flow-actions">

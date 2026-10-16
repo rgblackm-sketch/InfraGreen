@@ -27,6 +27,8 @@ export type DashboardProject = {
   email?: string | null;
   phone?: string | null;
   photo_count?: number | null;
+  photo_paths?: string[] | null;
+  photo_urls?: { path: string; url: string }[];
   [key: string]: unknown;
 };
 
@@ -273,8 +275,25 @@ export function AdminDashboard({ initialData }: { initialData: DashboardData }) 
                     </div>
 
                     <div className="admin-detail-section">
-                      <h4>Photo information</h4>
-                      <p>{selectedProject.photo_count ? `${selectedProject.photo_count} photo(s) were supplied.` : "No photo metadata was provided."}</p>
+                      <h4>Photos</h4>
+                      {selectedProject.photo_urls && selectedProject.photo_urls.length > 0 ? (
+                        <ul className="admin-photo-grid">
+                          {selectedProject.photo_urls.map((photo, index) => (
+                            <li key={photo.path}>
+                              <a href={photo.url} rel="noopener noreferrer" target="_blank">
+                                {/^.*\.(jpe?g|png)$/i.test(photo.path) ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img alt={`Project photo ${index + 1}`} loading="lazy" src={photo.url} />
+                                ) : (
+                                  <span>Download photo {index + 1} (HEIC)</span>
+                                )}
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p>{selectedProject.photo_paths?.length ? "Photos could not be loaded. Refresh to try again." : "No photos were uploaded."}</p>
+                      )}
                     </div>
 
                     <label className="field admin-status-field">

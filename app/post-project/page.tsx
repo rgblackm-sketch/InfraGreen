@@ -1,6 +1,6 @@
 import { ProjectForm } from "@/components/ProjectForm";
 
-export const metadata = { title: "Describe your project | InfraGreen" };
+export const metadata = { title: "Describe your project" };
 
 export default function PostProjectPage() {
   return (
