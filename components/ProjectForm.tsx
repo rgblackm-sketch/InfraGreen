@@ -81,10 +81,6 @@ function validateStep(step: number, draft: ProjectSubmissionData): StepErrors {
     }
   }
 
-  if (step === 2 && draft.photos.length === 0) {
-    errors.photos = "Add at least one photo to continue.";
-  }
-
   if (step === 3) {
     if (!draft.firstName.trim()) errors.firstName = "Enter your first name.";
     if (!draft.lastName.trim()) errors.lastName = "Enter your last name.";
@@ -440,7 +436,7 @@ export function ProjectForm() {
             <label className="project-dropzone-label" htmlFor="project-photos">
               <span className="dropzone-icon"><ImageIcon size={23} aria-hidden="true" /></span>
               <span className="dropzone-title">Drop photos here or <strong>browse files</strong></span>
-              <span className="dropzone-hint" id="photo-help">JPG, PNG, or HEIC · At least one photo required</span>
+              <span className="dropzone-hint" id="photo-help">JPG, PNG, or HEIC · Optional</span>
               <input accept=".jpg,.jpeg,.png,.heic,.heif,image/jpeg,image/png,image/heic,image/heif" aria-describedby={errors.photos ? "photo-help photo-error" : "photo-help"} className="project-file-input" id="project-photos" multiple name="photos" onChange={(event: ChangeEvent<HTMLInputElement>) => { addPhotos(event.target.files); event.currentTarget.value = ""; }} type="file" />
             </label>
           </div>

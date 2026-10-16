@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "InfraGreen Admin",
+  title: "Admin",
+  robots: { index: false, follow: false },
   description: "Internal admin dashboard for reviewing project submissions and professional applications.",
 };
 

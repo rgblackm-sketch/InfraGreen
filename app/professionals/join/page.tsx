@@ -1,6 +1,6 @@
 import { ProfessionalForm } from "@/components/ProfessionalForm";
 
-export const metadata = { title: "Join the provider network | InfraGreen" };
+export const metadata = { title: "Join the provider network" };
 
 export default function JoinProfessionalsPage() {
   return (

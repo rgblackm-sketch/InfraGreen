@@ -8,6 +8,8 @@ const solutions = [
   { title: "Stormwater Tree Trenches", text: "Tree systems that combine vegetation with engineered stormwater storage and management.", icon: TreePine, number: "04" },
 ];
 
+export const metadata = { title: "Solutions", description: "Rain gardens, bioswales, permeable pavement, and stormwater tree trenches for New Orleans-area properties." };
+
 export default function SolutionsPage() {
   return (
     <div className="content-page">

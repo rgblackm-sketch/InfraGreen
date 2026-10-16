@@ -6,6 +6,9 @@ import { redirect } from "next/navigation";
 import { isApprovedAdminEmail } from "@/lib/admin";
 import { getSupabaseServerClient, getSupabaseServiceRoleClient } from "@/lib/supabase-server";
 
+const PROJECT_STATUSES = ["new", "reviewing", "matching", "connected", "completed", "closed"];
+const APPLICATION_STATUSES = ["pending", "reviewing", "approved", "declined"];
+
 async function ensureAdminAccess() {
   const supabase = await getSupabaseServerClient();
   const { data: { user }, error } = await supabase.auth.getUser();
@@ -31,6 +34,10 @@ export async function updateProjectStatus(formData: FormData) {
     throw new Error("A project ID and status are required.");
   }
 
+  if (!PROJECT_STATUSES.includes(status)) {
+    throw new Error("Invalid project status.");
+  }
+
   await ensureAdminAccess();
 
   const supabase = getSupabaseServiceRoleClient();
@@ -52,6 +59,10 @@ export async function updateProfessionalApplicationStatus(formData: FormData) {
 
   if (!applicationId || !status) {
     throw new Error("An application ID and status are required.");
+  }
+
+  if (!APPLICATION_STATUSES.includes(status)) {
+    throw new Error("Invalid application status.");
   }
 
   await ensureAdminAccess();
