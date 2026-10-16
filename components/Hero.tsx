@@ -34,7 +34,7 @@ export function Hero() {
         </div>
         <figcaption className="hero-credit">
           Photo: <a href="https://commons.wikimedia.org/wiki/File:St._Charles_Ave,_New_Orleans,_LA.jpg" rel="noopener noreferrer" target="_blank">&ldquo;St. Charles Ave, New Orleans, LA&rdquo;</a> by TexasExplorer98, licensed under{" "}
-          <a href="https://creativecommons.org/licenses/by/2.0/" rel="noopener noreferrer license" target="_blank">CC BY 2.0</a>. Resized and cropped.
+          <a href="https://creativecommons.org/licenses/by/2.0/" rel="noopener noreferrer license" target="_blank">CC BY 2.0</a>. Resized.
         </figcaption>
         </figure>
       </div>
