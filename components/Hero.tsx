@@ -2,6 +2,8 @@ import { ArrowDownRight, ArrowRight, MoveUpRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
+import stCharlesOaks from "@/public/images/st-charles-oaks.jpg";
+
 export function Hero() {
   return (
     <section className="hero-section">
@@ -16,13 +18,13 @@ export function Hero() {
           </div>
           <div className="hero-note"><span className="note-rule" /> Start with what you see. We’ll help with what comes next.</div>
         </div>
+        <figure className="hero-media">
         <div className="hero-visual">
           <Image
             className="hero-image"
-            src="https://images.unsplash.com/photo-1511497584788-876760111969?auto=format&fit=crop&w=1500&q=85"
-            alt="A green urban landscape with established trees and planting"
-            width={1500}
-            height={1100}
+            src={stCharlesOaks}
+            alt="Live oak trees arching over the streetcar tracks on St. Charles Avenue in New Orleans"
+            placeholder="blur"
             sizes="(max-width: 740px) 100vw, 55vw"
             priority
           />
@@ -30,6 +32,11 @@ export function Hero() {
           <div className="visual-caption"><span className="caption-kicker">INFRASTRUCTURE, IN A NEW LIGHT</span><span>Thoughtful systems. Healthier places.</span></div>
           <div className="visual-index"><span>01</span><span className="index-line" /><span>03</span></div>
         </div>
+        <figcaption className="hero-credit">
+          Photo: <a href="https://commons.wikimedia.org/wiki/File:St._Charles_Ave,_New_Orleans,_LA.jpg" rel="noopener noreferrer" target="_blank">&ldquo;St. Charles Ave, New Orleans, LA&rdquo;</a> by TexasExplorer98, licensed under{" "}
+          <a href="https://creativecommons.org/licenses/by/2.0/" rel="noopener noreferrer license" target="_blank">CC BY 2.0</a>. Resized and cropped.
+        </figcaption>
+        </figure>
       </div>
     </section>
   );
