@@ -888,3 +888,41 @@ h1, h2, h3, p { margin-top: 0; }
   .admin-detail-row dd { text-align: left; }
   .admin-card--auth { padding: 24px 18px; }
 }
+
+.turnstile-widget {
+  margin-top: 1.25rem;
+  min-height: 65px;
+}
+
+.admin-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.admin-photo-grid img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.hero-media {
+  margin: 0;
+  min-width: 0;
+}
+
+.hero-credit {
+  margin: 6px 0 0;
+  text-align: right;
+  color: #5b6b62;
+  font-size: 11px;
+}
+
+.hero-credit a {
+  color: inherit;
+  text-decoration: underline;
+}

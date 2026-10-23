@@ -18,7 +18,8 @@ import {
   type ProfessionalApplicationReceipt,
 } from "@/lib/professional-application";
 import { createSubmissionReference } from "@/lib/submission-reference";
-import { getSupabaseBrowserClient } from "@/lib/supabase";
+import { submitProfessionalApplication } from "@/app/actions/submissions";
+import { TURNSTILE_SITE_KEY, TurnstileWidget } from "@/components/TurnstileWidget";
 
 const stepLabels = ["Business", "Services", "Experience", "Coverage", "Review"];
 
@@ -209,6 +210,8 @@ export function ProfessionalForm() {
   const [receipt, setReceipt] = useState<ProfessionalApplicationReceipt | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileReset, setTurnstileReset] = useState(0);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const didMountRef = useRef(false);
   const submissionInProgressRef = useRef(false);
@@ -333,6 +336,11 @@ export function ProfessionalForm() {
       return;
     }
 
+    if (TURNSTILE_SITE_KEY && !turnstileToken) {
+      setSubmitError("Please complete the security check before submitting.");
+      return;
+    }
+
     if (submissionInProgressRef.current) return;
     submissionInProgressRef.current = true;
     setIsSubmitting(true);
@@ -341,7 +349,7 @@ export function ProfessionalForm() {
     const referenceNumber = createSubmissionReference("IG-PRO");
 
     try {
-      const { error } = await getSupabaseBrowserClient().from("professional_applications").insert({
+      const result = await submitProfessionalApplication({
         business_name: application.businessName,
         contact_first_name: application.contactFirstName,
         contact_last_name: application.contactLastName,
@@ -367,9 +375,16 @@ export function ProfessionalForm() {
         additional_information: application.additionalInformation,
         acknowledgements: application.acknowledgements,
         application_status: "pending",
-      });
+      }, turnstileToken);
 
-      if (error) throw error;
+      if (!result.ok) {
+        setTurnstileReset((value) => value + 1);
+        if (result.error === "captcha") {
+          setSubmitError("Please complete the security check and try again.");
+          return;
+        }
+        throw new Error("Submission failed");
+      }
       setReceipt({ referenceNumber });
     } catch (error) {
       if (process.env.NODE_ENV === "development") {
@@ -708,6 +723,10 @@ export function ProfessionalForm() {
             />
           </fieldset>
         </section>
+      )}
+
+      {activeStep === stepLabels.length - 1 && (
+        <TurnstileWidget onToken={setTurnstileToken} resetSignal={turnstileReset} />
       )}
 
       <div className="flow-actions">
