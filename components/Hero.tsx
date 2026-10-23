@@ -2,7 +2,7 @@ import { ArrowDownRight, ArrowRight, MoveUpRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
-import stCharlesOaks from "@/public/images/st-charles-oaks.jpg";
+import carrolltonStreetcarRain from "@/public/images/carrollton-streetcar-rain.jpg";
 
 export function Hero() {
   return (
@@ -22,8 +22,8 @@ export function Hero() {
         <div className="hero-visual">
           <Image
             className="hero-image"
-            src={stCharlesOaks}
-            alt="Live oak trees arching over the streetcar tracks on St. Charles Avenue in New Orleans"
+            src={carrolltonStreetcarRain}
+            alt="A New Orleans streetcar passing under live oak trees on Carrollton Avenue on a rainy morning, with wet streets in the foreground"
             placeholder="blur"
             sizes="(max-width: 740px) 100vw, 55vw"
             priority
@@ -33,8 +33,8 @@ export function Hero() {
           <div className="visual-index"><span>01</span><span className="index-line" /><span>03</span></div>
         </div>
         <figcaption className="hero-credit">
-          Photo: <a href="https://commons.wikimedia.org/wiki/File:St._Charles_Ave,_New_Orleans,_LA.jpg" rel="noopener noreferrer" target="_blank">&ldquo;St. Charles Ave, New Orleans, LA&rdquo;</a> by TexasExplorer98, licensed under{" "}
-          <a href="https://creativecommons.org/licenses/by/2.0/" rel="noopener noreferrer license" target="_blank">CC BY 2.0</a>. Resized.
+          Photo: <a href="https://commons.wikimedia.org/wiki/File:Rainy_morning_on_Carrollton_Avenue,_New_Orleans,_18_January_2025_-_Streetcar.jpg" rel="noopener noreferrer" target="_blank">&ldquo;Rainy morning on Carrollton Avenue, New Orleans&rdquo;</a> by Infrogmation, licensed under{" "}
+          <a href="https://creativecommons.org/licenses/by-sa/4.0/" rel="noopener noreferrer license" target="_blank">CC BY-SA 4.0</a>. Resized.
         </figcaption>
         </figure>
       </div>
